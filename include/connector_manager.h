@@ -287,6 +287,7 @@ public:
     start_time = time(nullptr);
     local_ip = GetLocalIP();
     transfer = NULL;
+    std::cout<<"NAME CLIENT: "<<NAME_CLIENT<<"\n";
   }
   void on() {
     for (int i = 0; i < connections.size(); i++) {
