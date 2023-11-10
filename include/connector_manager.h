@@ -13,7 +13,7 @@
 #include <thread>
 #include <unistd.h>
 namespace connector {
-#define NAME_SERVER "test"
+#define NAME_CLIENT "test"
 std::string GetLocalIP();
 struct return_data {
   t_json json_send;
@@ -239,14 +239,14 @@ private:
     std::string server_hash;
     int index = find_conn(address);
     t_json json;
-    std::string name_server = NAME_SERVER;
+    std::string name_client = NAME_CLIENT;
     json["$time"] = std::to_string(start_time);
     json["$ip"] = local_ip;
     if (loop == false) {
       try {
         int res_code = 0;
         t_json jcode =
-            cw.get_page_json(address, "/api/client/" + name_server + "/getid",
+            cw.get_page_json(address, "/api/client/" + name_client + "/getid",
                              json.dump(), res_code);
         if (!jcode.empty()) {
           hash_worker = jcode["$hash_worker"];
@@ -260,7 +260,7 @@ private:
         try {
           int res_code = 0;
           t_json jcode =
-              cw.get_page_json(address, "/api/client/" + name_server + "/getid",
+              cw.get_page_json(address, "/api/client/" + name_client + "/getid",
                                json.dump(), res_code);
           if (!jcode.empty()) {
             hash_worker = jcode["$hash_worker"];
@@ -299,7 +299,7 @@ public:
   void exit(std::string address) {
     int index = find_conn(address);
     std::string code = "";
-    std::string ns = NAME_SERVER;
+    std::string ns = NAME_CLIENT;
     while (code == "") {
       try {
         int res_code = 0;
@@ -344,7 +344,7 @@ public:
             void (*callback)(t_json jsonsend, t_json jsonanswer)) {
     int id = -1;
     std::string server_id;
-    std::string ns = NAME_SERVER;
+    std::string ns = NAME_CLIENT;
     int index = find_conn(address);
     while (id == -1) {
       try {
@@ -376,7 +376,7 @@ public:
   void send_response(t_json json_req, t_json json_res) {
     int id = -1;
     std::string server_id;
-    std::string ns = NAME_SERVER;
+    std::string ns = NAME_CLIENT;
     t_json jdata;
     jdata["meta"] = json_req["meta"];
     jdata["data"] = json_res["data"];
@@ -424,7 +424,7 @@ public:
   int start_event(t_json &json_event) {
     int id = -1;
     std::string server_id;
-    std::string ns = NAME_SERVER;
+    std::string ns = NAME_CLIENT;
     std::string st = (std::string)json_event["id"];
     int index = find_conn(json_event["address"]);
     try {
@@ -454,7 +454,7 @@ public:
   int end_event(t_json &json_event) {
     int id = -1;
     std::string server_id;
-    std::string ns = NAME_SERVER;
+    std::string ns = NAME_CLIENT;
     int index = find_conn(json_event["address"]);
     try {
       int res_code = 0;
@@ -506,8 +506,8 @@ public:
       bool job = false;
       start_time = std::chrono::high_resolution_clock::now();
       int size_arr = json["meta"]["$list_servers"].size();
-      std::string name_server = NAME_SERVER;
-      if (json["meta"]["$list_servers"][size_arr - 1]["name"] == name_server) {
+      std::string name_client = NAME_CLIENT;
+      if (json["meta"]["$list_servers"][size_arr - 1]["name"] == name_client) {
         if (json["meta"]["$type_event"] == "res") {
           if (start_event(json) == 0) {
             m_returns.call(json["meta"]["$respon_id"],
@@ -545,7 +545,7 @@ public:
   void getevent() {
 
     t_json json_temp;
-    std::string ns = NAME_SERVER;
+    std::string ns = NAME_CLIENT;
     int col = 0;
 
     int col_try = 0;
