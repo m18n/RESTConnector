@@ -37,13 +37,14 @@ struct event {
 struct task {
   t_json json;
   bool note = false;
-  bool empty = false;
+  bool empty = true;
 };
 void init_task(task *ev);
 class manager_task {
 public:
   manager_task() { buffer.resize(25); }
   void add(t_json json) {
+    //std::cout<<"ADD: "<<json.dump()<<"\n";
     // for(int i=0;i<buffer_events.size();i++){
     //   if(!buffer_events[i].empty()&&buffer_events[i]["id"]==json["id"]){
     //     return;
@@ -56,6 +57,7 @@ public:
     m.lock();
     for (int i = 0; i < buffer.size(); i++) {
       if (buffer[i].empty == true) {
+        ev.empty=false;
         buffer[i] = ev;
         m.unlock();
         return;
@@ -510,8 +512,11 @@ public:
       start_time = std::chrono::high_resolution_clock::now();
       int size_arr = json["meta"]["$list_servers"].size();
       std::string name_client = NAME_CLIENT;
+      //std::cout<<"LIST\n";
+      //std::cout<<"JSON: "<<json.dump()<<" SIZE ARR: "<<size_arr<<"\n";
       if (json["meta"]["$list_servers"][size_arr - 1]["name"] == name_client) {
         if (json["meta"]["$type_event"] == "res") {
+          //std::cout<<"RES\n";
           if (start_event(json) == 0) {
             m_returns.call(json["meta"]["$respon_id"],
                            json["meta"]["$server_hash"], json);
@@ -519,6 +524,7 @@ public:
           }
         } else if (json["meta"]["$type_event"] == "req") {
           for (int j = 0; j < handlers.size(); j++) {
+            //std::cout<<"REQ\n";
             if (handlers[j].nameobj == json["meta"]["$type_obj"]) {
               std::cout << "START JSON: " << json["meta"]["$respon_id"] << "\n";
               if (start_event(json) == 0) {
