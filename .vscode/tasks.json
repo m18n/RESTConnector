@@ -1,0 +1,66 @@
+{
+    // See https://go.microsoft.com/fwlink/?Link...
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        //LINUX
+        {
+            "label": "cmake_debug_linux",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "${workspaceFolder}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/linux/x64/Debug"
+            }
+        },
+        {
+            "label": "build_debug_linux",
+            "type": "shell",
+            "command": "make",
+            "options": {
+                "cwd": "${workspaceFolder}/build/linux/x64/Debug"
+            }
+        },
+        {
+            "label": "coll_debug_linux",
+            "dependsOn": [
+                "cmake_debug_linux",
+                "build_debug_linux"
+            ],
+            
+        },
+        {
+            "label": "cmake_release_linux",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-DCMAKE_BUILD_TYPE=Release",
+                "${workspaceFolder}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build/linux/x64/Release"
+            }
+        },
+        {
+            "label": "build_release_linux",
+            "type": "shell",
+            "command": "make",
+            "options": {
+                "cwd": "${workspaceFolder}/build/linux/x64/Release"
+            }
+        },
+        {
+            "label": "coll_release_linux",
+            "dependsOn": [
+                "cmake_release_linux",
+                "build_release_linux"
+            ],
+            
+        },
+        
+        
+    ]
+}
