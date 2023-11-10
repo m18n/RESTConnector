@@ -13,7 +13,9 @@
 #include <thread>
 #include <unistd.h>
 namespace connector {
+#ifndef NAME_CLIENT
 #define NAME_CLIENT "test"
+#endif
 std::string GetLocalIP();
 struct return_data {
   t_json json_send;
