@@ -563,9 +563,9 @@ public:
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(
         end_event - start_event);
     bool all_successfull = false;
-    for (int i = 0; i < connections.size(); i++) {
-      connections[i].count_try = 0;
-    }
+    // for (int i = 0; i < connections.size(); i++) {
+    //   connections[i].count_try = 0;
+    // }
     while (true) {
       if (dur.count() > 100 || all_successfull == true) {
         break;
@@ -595,14 +595,14 @@ public:
                         res_code);
 
         if (res_code == 200) {
-          connections[i].count_try = 0;
           connections[i].respon_str = std::move(res_str);
+          connections[i].count_try=0;
 
         } else {
-          connections[i].last_try = std::chrono::high_resolution_clock::now();
           connections[i].count_try++;
           all_successfull = false;
         }
+        connections[i].last_try = std::chrono::high_resolution_clock::now();
       }
       col_try++;
       end_event = std::chrono::high_resolution_clock::now();
