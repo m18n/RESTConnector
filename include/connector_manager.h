@@ -289,9 +289,10 @@ public:
     start_time = time(nullptr);
     local_ip = GetLocalIP();
     transfer = NULL;
-    std::cout<<"NAME CLIENT: "<<name_client<<"\n";
+    
   }
   void on() {
+    std::cout<<"NAME CLIENT: "<<name_client<<"\n";
     for (int i = 0; i < connections.size(); i++) {
       get_myid(connections[i].address, true);
     }
