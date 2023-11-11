@@ -539,13 +539,12 @@ public:
           continue;
         }
       } else {
-        if (start_event(json) == 0) {
+        
           if (this->transfer != NULL) {
             transfer(this, json);
           }
 
-          end_event(json);
-        }
+          
       }
 
       m_task.delete_object(json["id"]);

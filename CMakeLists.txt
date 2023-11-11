@@ -5,7 +5,6 @@ set(CMAKE_THREAD_LIBS_INIT "-lpthread")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread ")
 find_package(CURL REQUIRED) 
 include_directories(${CURL_INCLUDE_DIR})
-include_directories("include")
 
 add_library(${NAME_OUT_FILE} SHARED curl_wrapper.cpp connector_manager.cpp)
 
