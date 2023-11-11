@@ -456,6 +456,33 @@ public:
 
     return id;
   }
+  int clear_event(t_json &json_event) {
+    int id = -1;
+    std::string server_id;
+    std::string ns = NAME_CLIENT;
+    std::string st = (std::string)json_event["id"];
+    int index = find_conn(json_event["address"]);
+    try {
+      int res_code = 0;
+      t_json jsonres = cw.get_page_json(
+          json_event["address"],
+          "/api/send/" + connections[index].server_hash + "/" + ns +
+              "/command/" + connections[index].hash_worker + "/event/clear/" +
+              (std::string)json_event["id"],
+          res_code);
+      if (!jsonres.empty()) {
+        if (jsonres.contains("$error")) {
+          get_myid(json_event["address"], false);
+        } else {
+          id = jsonres["$status"];
+        }
+      }
+
+    } catch (const t_json::exception &e) {
+    }
+
+    return id;
+  }
   int end_event(t_json &json_event) {
     int id = -1;
     std::string server_id;
