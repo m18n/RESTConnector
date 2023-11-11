@@ -18,5 +18,4 @@ LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
 )
   message("This is a submodule.")
 endif()
-
-
+target_link_libraries(${PROJECT_NAME} -lm -pthread ${CURL_LIBRARIES} ${PROJECT_NAME})
