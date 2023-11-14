@@ -38,36 +38,86 @@ struct task {
   bool empty = true;
 };
 void init_task(task *ev);
+class mutex_n {
+public:
+  mutex_n() = default;
+  void lock() {
+  if (n == 0) {
+   
+    mt.lock();
+  } 
+  n++;
+}
+void unlock() {
+  if (n == 1) {
+    
+    mt.unlock();
+  }
+  if (n != 0)
+    n--;
+}
+
+private:
+  int n = 0;
+  std::mutex mt;
+};
+class scope_lock_mutex {
+public:
+  scope_lock_mutex() { b = false; }
+  scope_lock_mutex(mutex_n *m) : scope_lock_mutex() {
+    this->m = m;
+    lock();
+  }
+  void lock() {
+    if (b == false)
+      m->lock();
+    b = true;
+  }
+  void unlock() {
+    if (b == true)
+      m->unlock();
+    b = false;
+  }
+  ~scope_lock_mutex() { unlock(); }
+
+private:
+  mutex_n *m;
+  bool b;
+};
 class manager_task {
 public:
-  manager_task() { buffer.resize(25); }
+  manager_task() { scope_lock_mutex s_ret(&mt);
+     buffer.resize(25); }
   void add(t_json json) {
-    //std::cout<<"ADD: "<<json.dump()<<"\n";
-    // for(int i=0;i<buffer_events.size();i++){
-    //   if(!buffer_events[i].empty()&&buffer_events[i]["id"]==json["id"]){
-    //     return;
-    //   }
-    // }
+    // std::cout<<"ADD: "<<json.dump()<<"\n";
+    //  for(int i=0;i<buffer_events.size();i++){
+    //    if(!buffer_events[i].empty()&&buffer_events[i]["id"]==json["id"]){
+    //      return;
+    //    }
+    //  }
     task ev;
     ev.json = json;
     ev.note = true;
+    scope_lock_mutex s_ret(&mt);
+    
     // std::cout<<"$$$ADD\n";
-    m.lock();
+   
     for (int i = 0; i < buffer.size(); i++) {
       if (buffer[i].empty == true) {
-        ev.empty=false;
+        ev.empty = false;
         buffer[i] = ev;
-        m.unlock();
+        
         return;
       }
     }
     buffer.push_back(ev);
-    m.unlock();
+  
   }
   void show() {
     int c = 1;
     // std::cout<<"$$$SHOW\n";
-    m.lock();
+    scope_lock_mutex s_ret(&mt);
+    
     for (int i = 0; i < buffer.size(); i++) {
       if (!buffer[i].empty) {
         std::cout << "\n C: " << c << " JSON_OBJECT: " << buffer[i].json.dump()
@@ -75,25 +125,27 @@ public:
         c++;
       }
     }
-    m.unlock();
+  
   }
   bool check_id(std::string id) {
     // std::cout<<"$$$CHECK\n";
-    m.lock();
+    scope_lock_mutex s_ret(&mt);
     for (int i = 0; i < buffer.size(); i++) {
       if (!buffer[i].empty && buffer[i].json["id"] == id) {
         buffer[i].note = true;
-        m.unlock();
+       
         return true;
       }
     }
-    m.unlock();
+  
     return false;
   }
   t_json get_task() {
+
     // std::cout<<"$$$GET TASK\n";
     t_json t;
-    m.lock();
+    scope_lock_mutex s_ret(&mt);
+    
     for (int i = 0; i < buffer.size(); i++) {
       if (!buffer[i].empty) {
         t = buffer[i].json;
@@ -101,46 +153,49 @@ public:
         break;
       }
     }
-    m.unlock();
+   
     return t;
   }
   void delete_notnote() {
     // std::cout<<"$$$DELETE\n";
-    m.lock();
+    scope_lock_mutex s_ret(&mt);
+    
     for (int i = 0; i < buffer.size(); i++) {
       if (!buffer[i].empty && buffer[i].note == false) {
         init_task(&buffer[i]);
       }
     }
-    m.unlock();
+    
   }
 
   void note_all() {
+    scope_lock_mutex s_ret(&mt);
     // std::cout<<"$$$NOT ALL\n";
-    m.lock();
+    
     for (int i = 0; i < buffer.size(); i++) {
       if (!buffer[i].empty) {
         buffer[i].note = false;
       }
     }
-    m.unlock();
+    
   }
   void delete_object(std::string id) {
+    scope_lock_mutex s_ret(&mt);
     // std::cout<<"$$$DELETE OBJ\n";
-    m.lock();
+    
     for (int i = 0; i < buffer.size(); i++) {
       if (!buffer[i].empty && buffer[i].json["id"] == id) {
         init_task(&buffer[i]);
-        m.unlock();
+        
         return;
       }
     }
-    m.unlock();
+    
   }
   ~manager_task() {}
 
 private:
-  std::mutex m;
+  mutex_n mt;
   std::vector<task> buffer;
 };
 class manager_returns {
@@ -148,20 +203,22 @@ public:
   manager_returns() { returns.resize(25); }
   ~manager_returns() {}
   void add(return_data d) {
-    mt_ret.lock();
+    scope_lock_mutex s_ret(&mt_ret);
+    
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == -1) {
         returns[i] = d;
-        mt_ret.unlock();
+       
         return;
       }
     }
 
     returns.push_back(d);
-    mt_ret.unlock();
+    
   }
   void call(int respon_id, std::string server_hash, t_json answer) {
-    mt_ret.lock();
+    scope_lock_mutex s_ret(&mt_ret);
+   
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == respon_id &&
           returns[i].server_hash == server_hash) {
@@ -169,35 +226,37 @@ public:
         init_return_data(&returns[i]);
       }
     }
-    mt_ret.unlock();
+   
   }
   bool check(int respon_id, std::string server_hash) {
-    mt_ret.lock();
+    scope_lock_mutex s_ret(&mt_ret);
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == respon_id &&
           returns[i].server_hash == server_hash) {
-        mt_ret.unlock();
+        
         return true;
       }
     }
-    mt_ret.unlock();
+  
     return false;
   }
   void delete_object(return_data d) {
-    mt_ret.lock();
+    scope_lock_mutex s_ret(&mt_ret);
+    
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == d.respon_id) {
         returns[i].respon_id = -1;
-        mt_ret.unlock();
+       
         return;
       }
     }
-    mt_ret.unlock();
+   
   }
 
 private:
   std::vector<return_data> returns;
-  std::mutex mt_ret;
+  mutex_n mt_ret;
+  
 };
 struct connection {
   std::string address;
@@ -207,6 +266,7 @@ struct connection {
   std::string server_hash = "1";
   std::string hash_worker = "1";
 };
+
 class connector_manager {
 private:
   time_t start_time;
@@ -215,7 +275,7 @@ private:
   manager_returns m_returns;
   std::thread *th;
   std::thread *th_worker;
-
+  mutex_n mt_n;
   std::vector<handler> handlers;
   t_json last_events;
   std::condition_variable cv;
@@ -226,11 +286,13 @@ private:
   bool work_loop = false;
   std::vector<connection> connections;
   void (*transfer)(connector::connector_manager *m_conn, t_json json);
-public:
-  std::string name_client="test";
-private:
 
+public:
+  std::string name_client = "test";
+
+private:
   int find_conn(std::string address) {
+    scope_lock_mutex s_mt(&mt_n);
     for (int i = 0; i < connections.size(); i++) {
       if (connections[i].address == address) {
         return i;
@@ -239,11 +301,12 @@ private:
     return -1;
   }
   void get_myid(std::string address, bool loop) {
+    scope_lock_mutex s_mt(&mt_n);
     std::string hash_worker = "";
     std::string server_hash;
     int index = find_conn(address);
     t_json json;
-    
+
     json["$time"] = std::to_string(start_time);
     json["$ip"] = local_ip;
     if (loop == false) {
@@ -286,13 +349,14 @@ private:
 
 public:
   connector_manager() {
+    scope_lock_mutex s_mt(&mt_n);
     start_time = time(nullptr);
     local_ip = GetLocalIP();
     transfer = NULL;
-    
   }
   void on() {
-    std::cout<<"NAME CLIENT: "<<name_client<<"\n";
+    scope_lock_mutex s_mt(&mt_n);
+    std::cout << "NAME CLIENT: " << name_client << "\n";
     for (int i = 0; i < connections.size(); i++) {
       get_myid(connections[i].address, true);
     }
@@ -300,12 +364,14 @@ public:
   }
   void set_transfer(void (*transfer)(connector::connector_manager *m_conn,
                                      t_json json)) {
+    scope_lock_mutex s_mt(&mt_n);
     this->transfer = transfer;
   }
   void exit(std::string address) {
+    scope_lock_mutex s_mt(&mt_n);
     int index = find_conn(address);
     std::string code = "";
-    
+
     while (code == "") {
       try {
         int res_code = 0;
@@ -319,6 +385,7 @@ public:
     }
   }
   void off() {
+    scope_lock_mutex s_mt(&mt_n);
     finish_loop();
     for (int i = 0; i < connections.size(); i++) {
       exit(connections[i].address);
@@ -342,17 +409,19 @@ public:
   //   return code;
   // }
   void add_connection(std::string conn) {
+    scope_lock_mutex s_mt(&mt_n);
     connection con;
     con.address = conn;
     connections.push_back(con);
   }
   void send(std::string address, t_json json,
             void (*callback)(t_json jsonsend, t_json jsonanswer)) {
+    scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
-   
+
     int index = find_conn(address);
-    while (id == -1) {
+    while (id < 0) {
       try {
         int res_code = 0;
         t_json jsonres = cw.get_page_json(
@@ -366,8 +435,7 @@ public:
         } else {
           id = jsonres["$respon_id"];
         }
-        if (id == -1)
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
       } catch (const t_json::exception &e) {
       }
     }
@@ -380,9 +448,10 @@ public:
     m_returns.add(d);
   }
   void send_response(t_json json_req, t_json json_res) {
+    scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
-    
+
     t_json jdata;
     jdata["meta"] = json_req["meta"];
     jdata["data"] = json_res["data"];
@@ -391,7 +460,7 @@ public:
     std::reverse(jdata["meta"]["$list_servers"].begin(),
                  jdata["meta"]["$list_servers"].end());
     int index = find_conn(json_req["address"]);
-    while (id == -1) {
+    while (id < 0) {
       try {
         int res_code = 0;
         t_json jsonres = cw.get_page_json(
@@ -405,8 +474,7 @@ public:
         } else {
           id = jsonres["$respon_id"];
         }
-        if (id == -1)
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
       } catch (const t_json::exception &e) {
       }
     }
@@ -421,16 +489,22 @@ public:
   }
   void add_handler(std::string nameobj,
                    void (*callback)(connector_manager *conn, t_json json_req)) {
+    scope_lock_mutex s_mt(&mt_n);
     handler h;
     h.callback = callback;
     h.nameobj = nameobj;
     handlers.push_back(h);
   }
-  t_json get_all_events() { return last_events; }
+  t_json get_all_events() {
+    scope_lock_mutex s_mt(&mt_n);
+    t_json j = last_events;
+    return std::move(j);
+  }
   int start_event(t_json &json_event) {
+    scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
-    
+
     std::string st = (std::string)json_event["id"];
     int index = find_conn(json_event["address"]);
     try {
@@ -458,9 +532,10 @@ public:
     return id;
   }
   int clear_event(t_json &json_event) {
+    scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
-    
+
     std::string st = (std::string)json_event["id"];
     int index = find_conn(json_event["address"]);
     try {
@@ -485,9 +560,10 @@ public:
     return id;
   }
   int end_event(t_json &json_event) {
+    scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
-    
+
     int index = find_conn(json_event["address"]);
     try {
       int res_code = 0;
@@ -515,11 +591,12 @@ public:
     return id;
   }
   void worker_task() {
+   
     auto start_time = std::chrono::high_resolution_clock::now();
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
         end_time - start_time);
-
+    
     while (work_loop == true) {
       t_json json = m_task.get_task();
 
@@ -539,12 +616,12 @@ public:
       bool job = false;
       start_time = std::chrono::high_resolution_clock::now();
       int size_arr = json["meta"]["$list_servers"].size();
-      
-      //std::cout<<"LIST\n";
-      //std::cout<<"JSON: "<<json.dump()<<" SIZE ARR: "<<size_arr<<"\n";
+
+      // std::cout<<"LIST\n";
+      // std::cout<<"JSON: "<<json.dump()<<" SIZE ARR: "<<size_arr<<"\n";
       if (json["meta"]["$list_servers"][size_arr - 1]["name"] == name_client) {
         if (json["meta"]["$type_event"] == "res") {
-          //std::cout<<"RES\n";
+          // std::cout<<"RES\n";
           if (start_event(json) == 0) {
             m_returns.call(json["meta"]["$respon_id"],
                            json["meta"]["$server_hash"], json);
@@ -552,7 +629,7 @@ public:
           }
         } else if (json["meta"]["$type_event"] == "req") {
           for (int j = 0; j < handlers.size(); j++) {
-            //std::cout<<"REQ\n";
+            // std::cout<<"REQ\n";
             if (handlers[j].nameobj == json["meta"]["$type_obj"]) {
               std::cout << "START JSON: " << json["meta"]["$respon_id"] << "\n";
               if (start_event(json) == 0) {
@@ -567,21 +644,19 @@ public:
           continue;
         }
       } else {
-        
-          if (this->transfer != NULL) {
-            transfer(this, json);
-          }
 
-          
+        if (this->transfer != NULL) {
+          transfer(this, json);
+        }
       }
 
       m_task.delete_object(json["id"]);
     }
   }
   void getevent() {
-
+    scope_lock_mutex s_mt(&mt_n);
     t_json json_temp;
-    
+
     int col = 0;
 
     int col_try = 0;
@@ -615,15 +690,15 @@ public:
         }
         int res_code = 0;
         std::string res_str = "";
-        res_str =
-            cw.get_page(connections[i].address,
-                        "/api/get/" + connections[i].server_hash + "/" + name_client +
-                            "/command/" + connections[i].hash_worker + "/event",
-                        res_code);
+        res_str = cw.get_page(connections[i].address,
+                              "/api/get/" + connections[i].server_hash + "/" +
+                                  name_client + "/command/" +
+                                  connections[i].hash_worker + "/event",
+                              res_code);
 
         if (res_code == 200) {
           connections[i].respon_str = std::move(res_str);
-          connections[i].count_try=0;
+          connections[i].count_try = 0;
 
         } else {
           connections[i].count_try++;
@@ -718,17 +793,20 @@ public:
     }
   }
   void start_loop() {
+    scope_lock_mutex s_mt(&mt_n);
     work_loop = true;
     th = new std::thread(&connector_manager::loop, this);
     th_worker = new std::thread(&connector_manager::worker_task, this);
   }
   void loop() {
+   
     while (work_loop == true) {
       getevent();
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
   void finish_loop() {
+    scope_lock_mutex s_mt(&mt_n);
     work_loop = false;
     th->join();
     th_worker->join();
