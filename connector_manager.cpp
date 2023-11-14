@@ -1,5 +1,10 @@
 
 #include"include/connector_manager.h"
+static connector::Logger log_empty;
+connector::Logger* connector::connector_log=&log_empty;
+void connector::init_logg_connector(Logger* log){
+  connector_log=log;
+}
 void connector::init_return_data(return_data* data){
   data->callback=NULL;
   data->json_send.clear();
