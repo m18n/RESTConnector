@@ -67,6 +67,7 @@ struct file {
 class Logger {
 private:
   std::vector<file> logFiles;
+  std::vector<int> log_levels;
   std::string currentfile;
   mutex_n mt;
   std::string getCurrentTime() {
@@ -125,9 +126,34 @@ public:
     this->currentfile=filename;
     logFiles.push_back(std::move(logFile));
   }
-  void log(std::string name_log, std::string message) {
+  void add_log_level(int log_level){
+    scope_lock_mutex s_mt(&mt);
+    log_levels.push_back(log_level);
+  }
+  void delete_log_level(int log_level){
+    scope_lock_mutex s_mt(&mt);
+    
+    for(int i=0;i<log_levels.size();i++){
+      if(log_levels[i]==log_level){
+        log_levels.erase(log_levels.begin()+i);
+        return;
+      }
+    }
+    
+  }
+  bool find(int log_level){
+    for(int i=0;i<log_levels.size();i++){
+      if(log_level==log_levels[i]){
+        return true;
+      }
+    }
+    return false;
+  }
+  void log(int log_level,std::string name_log, std::string message) {
     scope_lock_mutex s_mt(&mt);
     std::string time = getCurrentTime();
+    if(find(log_level)==false)
+      return;
     if(logFiles.size()==0){
       std::cout << time << " - " << name_log << " - " << message
                       << std::endl;
@@ -143,23 +169,11 @@ public:
                       << std::endl; // Записуємо повідомлення з часом у файл
     }
   }
-  void log(std::string filename, std::string name_log, std::string message) {
+  void log(int log_level,std::string filename, std::string name_log, std::string message) {
+   
     scope_lock_mutex s_mt(&mt);
-    std::string time = getCurrentTime();
-    if(logFiles.size()==0){
-      std::cout << time << " - " << name_log << " - " << message
-                      << std::endl;
-      return;
-    }
-    int index = find_file(filename);
-    if (index == -1) {
-      exit(1);
-    }
-    if (logFiles[index].file.is_open()) {
-      
-      logFiles[index].file << time << " - " << name_log << " - " << message
-                      << std::endl; // Записуємо повідомлення з часом у файл
-    }
+    this->currentfile = filename;
+    log(log_level,name_log,message);
   }
   ~Logger() {
     scope_lock_mutex s_mt(&mt);
@@ -203,7 +217,7 @@ public:
     buffer.resize(25);
   }
   void add(t_json json) {
-    connector_log->log("manager_task|add","START FUNCTION\n");
+    connector_log->log(0,"manager_task|add","START FUNCTION\n");
     // std::cout<<"ADD: "<<json.dump()<<"\n";
     //  for(int i=0;i<buffer_events.size();i++){
     //    if(!buffer_events[i].empty()&&buffer_events[i]["id"]==json["id"]){
@@ -221,14 +235,14 @@ public:
       if (buffer[i].empty == true) {
         ev.empty = false;
         buffer[i] = ev;
-        connector_log->log("manager_task|add","ADD TO BUFFER\n");
+        connector_log->log(0,"manager_task|add","ADD TO BUFFER\n");
         return;
       }
     }
     buffer.push_back(ev);
   }
   void show() {
-    connector_log->log("manager_task|show","START FUNCTION\n");
+    connector_log->log(0,"manager_task|show","START FUNCTION\n");
     int c = 1;
     // std::cout<<"$$$SHOW\n";
     scope_lock_mutex s_ret(&mt);
@@ -244,7 +258,7 @@ public:
 
   }
   bool check_id(std::string id) {
-    connector_log->log("manager_task|check_id","START FUNCTION\n");
+    connector_log->log(0,"manager_task|check_id","START FUNCTION\n");
     // std::cout<<"$$$CHECK\n";
     scope_lock_mutex s_ret(&mt);
     for (int i = 0; i < buffer.size(); i++) {
@@ -258,7 +272,7 @@ public:
     return false;
   }
   t_json get_task() {
-    connector_log->log("manager_task|get_task","START FUNCTION\n");
+    connector_log->log(0,"manager_task|get_task","START FUNCTION\n");
     // std::cout<<"$$$GET TASK\n";
     t_json t;
     scope_lock_mutex s_ret(&mt);
@@ -274,7 +288,7 @@ public:
     return t;
   }
   void delete_notnote() {
-    connector_log->log("manager_task|delete_notnote","START FUNCTION\n");
+    connector_log->log(0,"manager_task|delete_notnote","START FUNCTION\n");
     // std::cout<<"$$$DELETE\n";
     scope_lock_mutex s_ret(&mt);
 
@@ -286,7 +300,7 @@ public:
   }
 
   void note_all() {
-    connector_log->log("manager_task|not_all","START FUNCTION\n");
+    connector_log->log(0,"manager_task|not_all","START FUNCTION\n");
     scope_lock_mutex s_ret(&mt);
     // std::cout<<"$$$NOT ALL\n";
 
@@ -297,7 +311,7 @@ public:
     }
   }
   void delete_object(std::string id) {
-    connector_log->log("manager_task|delete_object","START FUNCTION\n");
+    connector_log->log(0,"manager_task|delete_object","START FUNCTION\n");
     scope_lock_mutex s_ret(&mt);
     // std::cout<<"$$$DELETE OBJ\n";
 
@@ -318,13 +332,13 @@ private:
 class manager_returns {
 public:
   manager_returns() {
-    connector_log->log("manager_returns|manager_returns","START FUNCTION\n");
+    connector_log->log(0,"manager_returns|manager_returns","START FUNCTION\n");
     scope_lock_mutex s_ret(&mt_ret);
     returns.resize(25);
   }
   ~manager_returns() {}
   void add(return_data d) {
-    connector_log->log("manager_returns|add","START FUNCTION\n");
+    connector_log->log(0,"manager_returns|add","START FUNCTION\n");
     scope_lock_mutex s_ret(&mt_ret);
 
     for (int i = 0; i < returns.size(); i++) {
@@ -338,7 +352,7 @@ public:
     returns.push_back(d);
   }
   void call(int respon_id, std::string server_hash, t_json answer) {
-    connector_log->log("manager_returns|call","START FUNCTION\n");
+    connector_log->log(0,"manager_returns|call","START FUNCTION\n");
     scope_lock_mutex s_ret(&mt_ret);
 
     for (int i = 0; i < returns.size(); i++) {
@@ -350,7 +364,7 @@ public:
     }
   }
   bool check(int respon_id, std::string server_hash) {
-    connector_log->log("manager_returns|check","START FUNCTION\n");
+    connector_log->log(0,"manager_returns|check","START FUNCTION\n");
     scope_lock_mutex s_ret(&mt_ret);
     for (int i = 0; i < returns.size(); i++) {
       if (returns[i].respon_id == respon_id &&
@@ -363,7 +377,7 @@ public:
     return false;
   }
   void delete_object(return_data d) {
-    connector_log->log("manager_returns|delete_object","START FUNCTION\n");
+    connector_log->log(0,"manager_returns|delete_object","START FUNCTION\n");
     scope_lock_mutex s_ret(&mt_ret);
 
     for (int i = 0; i < returns.size(); i++) {
@@ -413,7 +427,7 @@ public:
 
 private:
   int find_conn(std::string address) {
-    connector_log->log("connector_manager|find_conn","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|find_conn","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     for (int i = 0; i < connections.size(); i++) {
       if (connections[i].address == address) {
@@ -423,7 +437,7 @@ private:
     return -1;
   }
   void get_myid(std::string address, bool loop) {
-    connector_log->log("connector_manager|get_myid","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|get_myid","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     std::string hash_worker = "";
     std::string server_hash;
@@ -472,14 +486,14 @@ private:
 
 public:
   connector_manager() {
-    connector_log->log("connector_manager|connector_manager","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|connector_manager","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     start_time = time(nullptr);
     local_ip = GetLocalIP();
     transfer = NULL;
   }
   void on() {
-    connector_log->log("connector_manager|on","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|on","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     std::cout << "NAME CLIENT: " << name_client << "\n";
     for (int i = 0; i < connections.size(); i++) {
@@ -489,12 +503,12 @@ public:
   }
   void set_transfer(void (*transfer)(connector::connector_manager *m_conn,
                                      t_json json)) {
-    connector_log->log("connector_manager|set_transfer","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|set_transfer","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     this->transfer = transfer;
   }
   void exit(std::string address) {
-    connector_log->log("connector_manager|exit","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|exit","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     int index = find_conn(address);
     std::string code = "";
@@ -512,7 +526,7 @@ public:
     }
   }
   void off() {
-    connector_log->log("connector_manager|off","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|off","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     finish_loop();
     for (int i = 0; i < connections.size(); i++) {
@@ -537,7 +551,7 @@ public:
   //   return code;
   // }
   void add_connection(std::string conn) {
-    connector_log->log("connector_manager|add_connection","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|add_connection","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     connection con;
     con.address = conn;
@@ -545,7 +559,7 @@ public:
   }
   void send(std::string address, t_json json,
             void (*callback)(t_json jsonsend, t_json jsonanswer)) {
-              connector_log->log("connector_manager|send","START FUNCTION\n");
+              connector_log->log(0,"connector_manager|send","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
@@ -579,7 +593,7 @@ public:
     m_returns.add(d);
   }
   void send_response(t_json json_req, t_json json_res) {
-    connector_log->log("connector_manager|send_respone","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|send_respone","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
@@ -621,7 +635,7 @@ public:
   }
   void add_handler(std::string nameobj,
                    void (*callback)(connector_manager *conn, t_json json_req)) {
-    connector_log->log("connector_manager|add_handler","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|add_handler","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     handler h;
     h.callback = callback;
@@ -629,13 +643,13 @@ public:
     handlers.push_back(h);
   }
   t_json get_all_events() {
-    connector_log->log("connector_manager|get_all_events","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|get_all_events","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     t_json j = last_events;
     return std::move(j);
   }
   int start_event(t_json &json_event) {
-    connector_log->log("connector_manager|start_event","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|start_event","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
@@ -667,7 +681,7 @@ public:
     return id;
   }
   int clear_event(t_json &json_event) {
-    connector_log->log("connector_manager|clear_event","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|clear_event","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
@@ -696,7 +710,7 @@ public:
     return id;
   }
   int end_event(t_json &json_event) {
-    connector_log->log("connector_manager|end_event","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|end_event","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     int id = -1;
     std::string server_id;
@@ -728,14 +742,14 @@ public:
     return id;
   }
   void worker_task() {
-    connector_log->log("connector_manager|worker_task","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|worker_task","START FUNCTION\n");
     auto start_time = std::chrono::high_resolution_clock::now();
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
         end_time - start_time);
 
     while (work_loop == true) {
-      connector_log->log("connector_manager|worker_task","START LOOP\n");
+      connector_log->log(0,"connector_manager|worker_task","START LOOP\n");
       t_json json = m_task.get_task();
 
       if (json.empty()) {
@@ -792,7 +806,7 @@ public:
     }
   }
   void getevent() {
-    connector_log->log("connector_manager|getevent","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|getevent","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     t_json json_temp;
 
@@ -932,21 +946,21 @@ public:
     }
   }
   void start_loop() {
-    connector_log->log("connector_manager|start_loop","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|start_loop","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     work_loop = true;
     th = new std::thread(&connector_manager::loop, this);
     th_worker = new std::thread(&connector_manager::worker_task, this);
   }
   void loop() {
-    connector_log->log("connector_manager|loop","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|loop","START FUNCTION\n");
     while (work_loop == true) {
       getevent();
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
   void finish_loop() {
-    connector_log->log("connector_manager|finish_loop","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|finish_loop","START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
     work_loop = false;
     th->join();
@@ -955,7 +969,7 @@ public:
     delete th_worker;
   }
   ~connector_manager() {
-    connector_log->log("connector_manager|~connector_manager","START FUNCTION\n");
+    connector_log->log(0,"connector_manager|~connector_manager","START FUNCTION\n");
      off(); }
 };
 } // namespace connector
