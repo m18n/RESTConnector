@@ -202,40 +202,48 @@ void connector::manager_task::delete_object(std::string id) {
     }
   }
 }
+int connector::manager_returns::get_empty_id(){
+  connector_log->log(0, "manager_returns|get_empty_id", "START FUNCTION\n");
+  scope_lock_mutex s_ret(&mt_ret);
+  for (int i = 0; i < returns.size(); i++) {
+    if (returns[i].respon_id == -1) {
+      returns[i].respon_id = i;
+
+      return i;
+    }
+  }
+  return_data r;
+  r.respon_id=returns.size();
+  returns.push_back(r);
+  return r.respon_id;
+}
 void connector::manager_returns::add(return_data d) {
   connector_log->log(0, "manager_returns|add", "START FUNCTION\n");
   scope_lock_mutex s_ret(&mt_ret);
 
   for (int i = 0; i < returns.size(); i++) {
-    if (returns[i].respon_id == -1) {
+    if (returns[i].respon_id == d.respon_id) {
       returns[i] = d;
-
-      return;
     }
   }
-
-  returns.push_back(d);
 }
 void connector::manager_returns::call(int respon_id,
-                                      std::string server_hash,
                                       t_json answer) {
   connector_log->log(0, "manager_returns|call", "START FUNCTION\n");
   scope_lock_mutex s_ret(&mt_ret);
 
   for (int i = 0; i < returns.size(); i++) {
-    if (returns[i].respon_id == respon_id &&
-        returns[i].server_hash == server_hash) {
+    if (returns[i].respon_id == respon_id) {
       returns[i].callback(returns[i].json_send, answer);
       init_return_data(&returns[i]);
     }
   }
 }
-bool connector::manager_returns::check(int respon_id, std::string server_hash) {
+bool connector::manager_returns::check(int respon_id) {
   connector_log->log(0, "manager_returns|check", "START FUNCTION\n");
   scope_lock_mutex s_ret(&mt_ret);
   for (int i = 0; i < returns.size(); i++) {
-    if (returns[i].respon_id == respon_id &&
-        returns[i].server_hash == server_hash) {
+    if (returns[i].respon_id == respon_id) {
       return true;
     }
   }
@@ -262,7 +270,6 @@ void connector::init_return_data(return_data* data) {
   data->callback = NULL;
   data->json_send.clear();
   data->respon_id = -1;
-  data->server_hash = "";
 }
 void connector::init_task(task* ev) {
   ev->json.clear();
@@ -339,24 +346,23 @@ void connector::connector_manager::send(std::string address,
                                                          t_json jsonanswer)) {
   connector_log->log(0, "connector_manager|send", "START FUNCTION\n");
   scope_lock_mutex s_mt(&mt_n);
-  int id = -1;
+  int res_code = 0;
   std::string server_id;
-
-  int index = find_conn(address);
-
-  while (id < 0) {
+  int id_returns=m_returns.get_empty_id();
+  json["meta"]["$respon_id"]=id_returns;
+  while (res_code < 0) {
     try {
-      int res_code = 0;
+      int http_code;
       t_json jsonres = cw.get_page_json(
           address,
-          "/api/send/" + connections[index].hash_worker + "/" + name_client +
+          "/api/send/" + hash_worker + "/" + name_client +
               "/command/event",
-          json.dump(), res_code);
+          json.dump(), http_code);
       // std::cout<<"RES: "<<jsonres.dump()<<"\n";
       if (jsonres.contains("$error")) {
         connector_log->log(-1,"connector_manager|send","\nERROR SEND"+jsonres.dump()+"\n");
       } else {
-        id = jsonres["$respon_id"];
+        res_code = jsonres["$respon_id"];
       }
 
     } catch (const t_json::exception& e) {
@@ -365,9 +371,8 @@ void connector::connector_manager::send(std::string address,
   // std::cout<<"ID RESPON: "<<id<<"\n";
   return_data d;
   d.callback = callback;
-  d.respon_id = id;
+  d.respon_id = id_returns;
   d.json_send = json;
-  d.server_hash = connections[index].server_hash;
   m_returns.add(d);
 }
 void connector::connector_manager::send_response(t_json json_req,
@@ -390,7 +395,7 @@ void connector::connector_manager::send_response(t_json json_req,
       int res_code = 0;
       t_json jsonres = cw.get_page_json(
           json_req["address"],
-          "/api/send/" + connections[index].hash_worker + "/" + name_client +
+          "/api/send/" + hash_worker + "/" + name_client +
               "/command/event",
           jdata.dump(), res_code);
       // std::cout<<"RES: "<<jsonres.dump()<<"\n";
@@ -404,8 +409,7 @@ void connector::connector_manager::send_response(t_json json_req,
     }
   }
   std::cout << "RESPON: " << json_req["meta"]["$respon_id"].dump() << "\n";
-  if (m_returns.check(json_req["meta"]["$respon_id"],
-                      json_req["meta"]["$server_hash"])) {
+  if (m_returns.check(json_req["meta"]["$respon_id"])) {
     int ret = -1;
     while (ret == -1) {
       ret = end_event(json_req);
@@ -440,7 +444,7 @@ int connector::connector_manager::start_event(t_json& json_event) {
     int res_code = 0;
     t_json jsonres = cw.get_page_json(
         json_event["address"],
-        "/api/send/" + connections[index].hash_worker + "/" + name_client +
+        "/api/send/" +hash_worker+ "/" + name_client +
             "/command/event/start/" +
             (std::string)json_event["id"],
         res_code);
@@ -472,7 +476,7 @@ int connector::connector_manager::clear_event(t_json& json_event) {
     int res_code = 0;
     t_json jsonres = cw.get_page_json(
         json_event["address"],
-        "/api/send/" + connections[index].hash_worker + "/" + name_client +
+        "/api/send/" + hash_worker + "/" + name_client +
             "/command/event/clear/" +
             (std::string)json_event["id"],
         res_code);
@@ -500,7 +504,7 @@ int connector::connector_manager::end_event(t_json& json_event) {
     int res_code = 0;
     t_json jsonres = cw.get_page_json(
         json_event["address"],
-        "/api/send/" + connections[index].hash_worker + "/" + name_client +
+        "/api/send/" + hash_worker + "/" + name_client +
             "/command/event/finish/" +
             (std::string)json_event["id"],
         res_code);
@@ -555,8 +559,7 @@ void connector::connector_manager::worker_task() {
       if (json["meta"]["$type_event"] == "res") {
         // std::cout<<"RES\n";
         if (start_event(json) == 0) {
-          m_returns.call(json["meta"]["$respon_id"],
-                         json["meta"]["$server_hash"], json);
+          m_returns.call(json["meta"]["$respon_id"], json);
           end_event(json);
         }
       } else if (json["meta"]["$type_event"] == "req") {
@@ -622,7 +625,7 @@ void connector::connector_manager::getevent() {
       int res_code = 0;
       std::string res_str = "";
       res_str = cw.get_page(connections[i].address,
-                            "/api/get/" + connections[i].hash_worker + "/" +
+                            "/api/get/" + hash_worker + "/" +
                                 name_client + "/command/event",
                             res_code);
 

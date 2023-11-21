@@ -104,8 +104,6 @@ void init_logg_connector(Logger* log);
 std::string GetLocalIP();
 struct return_data {
   t_json json_send;
-
-  std::string server_hash;
   int respon_id = -1;
   void (*callback)(t_json jsonsend, t_json json_answer) = NULL;
 };
@@ -154,9 +152,10 @@ class manager_returns {
     returns.resize(25);
   }
   ~manager_returns() {}
+  int get_empty_id();
   void add(return_data d);
-  void call(int respon_id, std::string server_hash, t_json answer);
-  bool check(int respon_id, std::string server_hash);
+  void call(int respon_id, t_json answer);
+  bool check(int respon_id);
   void delete_object(return_data d);
 
  private:
@@ -168,8 +167,6 @@ struct connection {
   std::chrono::_V2::system_clock::time_point last_try;
   int count_try = 0;
   std::string respon_str;
-  std::string server_hash = "1";
-  std::string hash_worker = "1";
 };
 
 class connector_manager {
@@ -187,7 +184,7 @@ class connector_manager {
   bool empty_thread = false;
   std::mutex mt;
   curl_wrapper cw;
-
+  std::string hash_worker;
   bool work_loop = false;
   std::vector<connector::connection> connections;
   void (*transfer)(connector::connector_manager* m_conn, t_json json);
