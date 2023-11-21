@@ -2,7 +2,7 @@
 #include"curl/curl.h"
 #include<iostream>
 #include <nlohmann/json.hpp>
-
+namespace connector{
 using t_json = nlohmann::json;
 struct memory {
   char *response;
@@ -134,3 +134,4 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
     return total_size; 
 }
 };
+}
