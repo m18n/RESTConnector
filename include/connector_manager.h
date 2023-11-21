@@ -38,7 +38,9 @@ int check_thread(){
     my.lock();
     int index=check_thread();
     if (ids[index].number== 0) {
+      my.unlock();
       mt.lock();
+      my.lock();
     }
     ids[index].number++;
     my.unlock();
@@ -49,7 +51,9 @@ int check_thread(){
     my.lock();
     int index=check_thread();
     if (ids[index].number == 1) {
+      my.unlock();
       mt.unlock();
+      my.lock();
     }
     if (ids[index].number != 0)
       ids[index].number--;
