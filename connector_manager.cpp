@@ -234,7 +234,9 @@ void connector::manager_returns::call(int respon_id,
 
   for (int i = 0; i < returns.size(); i++) {
     if (returns[i].respon_id == respon_id) {
-      returns[i].callback(returns[i].json_send, answer);
+      t_json j=returns[i].json_send;
+      t_json a= answer;
+      returns[i].callback(j, a);
       init_return_data(&returns[i]);
     }
   }

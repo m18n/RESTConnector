@@ -14,26 +14,53 @@
 #include "curl_wrapper.h"
 #include "mutex"
 namespace connector {
+struct ident_mute{
+std::thread::id threadid;
+int number=0;
+};
 class mutex_n {
+private:
+int check_thread(){
+  for(int i=0;i<ids.size();i++){
+    if(ids[i].threadid==std::this_thread::get_id()){
+
+      return i;
+    }
+  }
+  ident_mute id;
+  id.threadid=std::this_thread::get_id();
+  ids.push_back(id);
+  return ids.size()-1;
+}
  public:
   mutex_n() = default;
   void lock() {
-    if (n == 0) {
+    my.lock();
+    int index=check_thread();
+    if (ids[index].number== 0) {
       mt.lock();
     }
-    n++;
+    ids[index].number++;
+    my.unlock();
   }
   void unlock() {
-    if (n == 1) {
+    
+    
+    my.lock();
+    int index=check_thread();
+    if (ids[index].number == 1) {
       mt.unlock();
     }
-    if (n != 0)
-      n--;
+    if (ids[index].number != 0)
+      ids[index].number--;
+    my.unlock();
   }
 
  private:
+ std::vector<ident_mute> ids;
   int n = 0;
   std::mutex mt;
+  std::mutex my;
 };
 class scope_lock_mutex {
  public:
