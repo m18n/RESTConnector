@@ -200,9 +200,20 @@ class connector_manager {
     connector_log->log(0, "connector_manager|connector_manager",
                        "START FUNCTION\n");
     scope_lock_mutex s_mt(&mt_n);
+     hash_worker=std::to_string(time(nullptr)+rand()%10000);
+     connector_log->log(0, "connector_manager|connector_manager",
+                       "HASH WORKER:"+hash_worker+"\n");
     start_time = time(nullptr);
     local_ip = GetLocalIP();
     transfer = NULL;
+    std::cout<<"HASH WORKER:"+hash_worker+"\n";
+  }
+  void set_hash_worker(std::string hash_worker){
+    scope_lock_mutex s_mt(&mt_n);
+    this->hash_worker=hash_worker;
+    connector_log->log(0, "connector_manager|set_hash_worker",
+                       "HASH WORKER:"+hash_worker+"\n");
+    std::cout<<"HASH WORKER:"+hash_worker+"\n";
   }
   void on();
   void set_transfer(void (*transfer)(connector::connector_manager* m_conn,
