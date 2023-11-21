@@ -197,9 +197,10 @@ struct connection {
   std::string address;
   std::chrono::_V2::system_clock::time_point last_try;
   int count_try = 0;
+  bool update=false;
   std::string respon_str;
 };
-
+bool compareByupdate(const connection* a, const connection* b);
 class connector_manager {
  private:
   time_t start_time;
