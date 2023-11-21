@@ -346,7 +346,7 @@ void connector::connector_manager::send(std::string address,
                                                          t_json jsonanswer)) {
   connector_log->log(0, "connector_manager|send", "START FUNCTION\n");
   scope_lock_mutex s_mt(&mt_n);
-  int res_code = 0;
+  int res_code = -1;
   std::string server_id;
   int id_returns=m_returns.get_empty_id();
   json["meta"]["$respon_id"]=id_returns;
@@ -379,7 +379,7 @@ void connector::connector_manager::send_response(t_json json_req,
                                                  t_json json_res) {
   connector_log->log(0, "connector_manager|send_respone", "START FUNCTION\n");
   scope_lock_mutex s_mt(&mt_n);
-  int id = -1;
+  int res_code = -1;
   std::string server_id;
 
   t_json jdata;
@@ -390,19 +390,19 @@ void connector::connector_manager::send_response(t_json json_req,
   std::reverse(jdata["meta"]["$list_servers"].begin(),
                jdata["meta"]["$list_servers"].end());
   int index = find_conn(json_req["address"]);
-  while (id < 0) {
+  while (res_code < 0) {
     try {
-      int res_code = 0;
+      int http_code = 0;
       t_json jsonres = cw.get_page_json(
           json_req["address"],
           "/api/send/" + hash_worker + "/" + name_client +
               "/command/event",
-          jdata.dump(), res_code);
+          jdata.dump(),http_code);
       // std::cout<<"RES: "<<jsonres.dump()<<"\n";
       if (jsonres.contains("$error")) {
         connector_log->log(-1,"connector_manager|send_respone","\nERROR SEND"+jsonres.dump()+"\n");
       } else {
-        id = jsonres["$respon_id"];
+        res_code = jsonres["$respon_id"];
       }
 
     } catch (const t_json::exception& e) {
