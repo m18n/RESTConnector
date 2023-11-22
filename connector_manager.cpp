@@ -107,7 +107,6 @@ void connector::manager_task::add(t_json json) {
   //  }
   task ev;
   ev.json = json;
-  ev.note = true;
   scope_lock_mutex s_ret(&mt);
 
   // std::cout<<"$$$ADD\n";
@@ -142,8 +141,6 @@ bool connector::manager_task::check_id(std::string id) {
   scope_lock_mutex s_ret(&mt);
   for (int i = 0; i < buffer.size(); i++) {
     if (!buffer[i].empty && buffer[i].json["id"] == id) {
-      buffer[i].note = true;
-
       return true;
     }
   }
@@ -274,8 +271,8 @@ void connector::init_return_data(return_data* data) {
 }
 void connector::init_task(task* ev) {
   ev->json.clear();
-  ev->note = false;
   ev->empty = true;
+  ev->note=false;
 }
 std::string connector::GetLocalIP() {
   struct ifaddrs* ifAddrStruct = nullptr;
@@ -528,90 +525,59 @@ int connector::connector_manager::end_event(t_json& json_event) {
 }
 void connector::connector_manager::worker_task() {
   connector_log->log(0, "connector_manager|worker_task", "START FUNCTION\n");
-  auto start_time = std::chrono::high_resolution_clock::now();
-  auto end_time = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-      end_time - start_time);
-  auto timer_get_task_start=std::chrono::high_resolution_clock::now();
-  auto timer_get_task_end=std::chrono::high_resolution_clock::now();
-  auto time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-      timer_get_task_end - timer_get_task_start);
   static int g = 1;
-  int num_miss=0;
-  int middle_timer=0;
-  while (work_loop == true) {
-    connector_log->log(0, "connector_manager|worker_task", "START LOOP\n");
-    timer_get_task_start=std::chrono::high_resolution_clock::now();
-    t_json json = m_task.get_task();
-    timer_get_task_end=std::chrono::high_resolution_clock::now();
-    time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-      timer_get_task_end - timer_get_task_start);
-    middle_timer+=time_duration.count();
-    if (json.empty()) {
-      end_time = std::chrono::high_resolution_clock::now();
-      duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-          end_time - start_time);
-      if (duration.count() >= 1000) {
-        std::cout<<"MIDDLE TIMER: "<<middle_timer/g<<" MD: "<<middle_timer<<" G: "<<g<<"\n";
-        std::cout<<"MISS: "<<num_miss<<"\n";
-        num_miss=0;
-        g=0;
-        middle_timer=0;
-        std::cout << "DURACTION: " << duration.count() << "\n";
-        std::unique_lock<std::mutex> lock(mt);
-        empty_thread = false;
-        cv.wait(lock, [this] { return this->empty_thread; });
-        lock.unlock();
-      }
-      continue;
-    }
-    
-    std::cout << "WORK START: " << g << "\n";
-    g++;
-    bool job = false;
-    start_time = std::chrono::high_resolution_clock::now();
-    int size_arr = json["meta"]["$list_servers"].size();
+  int num_miss = 0;
+  int middle_timer = 0;
+  for (int i = 0; i < m_task.buffer.size(); i++) {
+    if (m_task.buffer[i].empty == false) {
+      int size_arr = m_task.buffer[i].json["meta"]["$list_servers"].size();
 
-    // std::cout<<"LIST\n";
-    // std::cout<<"JSON: "<<json.dump()<<" SIZE ARR: "<<size_arr<<"\n";
-    if (json["meta"]["$list_servers"][size_arr - 1]["name"] == name_client) {
-      if (json["meta"]["$type_event"] == "res") {
-        // std::cout<<"RES\n";
-        if (start_event(json) == 0) {
-          m_returns.call(json["meta"]["$respon_id"], json);
-          end_event(json);
-        }else{
-          num_miss++;
-        }
-      } else if (json["meta"]["$type_event"] == "req") {
-        for (int j = 0; j < handlers.size(); j++) {
-          // std::cout<<"REQ\n";
-          if (handlers[j].nameobj == json["meta"]["$type_obj"]) {
-            std::cout << "START JSON: " << json["meta"]["$respon_id"] << "\n";
-            if (start_event(json) == 0) {
-              std::cout << "CALLBACK: " << json["meta"]["$respon_id"] << "\n";
-              handlers[j].callback(this, json);
-              end_event(json);
-            }else{
-              num_miss++;
-            }
-            break;
+      // std::cout<<"LIST\n";
+      // std::cout<<"JSON: "<<json.dump()<<" SIZE ARR: "<<size_arr<<"\n";
+      if (m_task.buffer[i].json["meta"]["$list_servers"][size_arr - 1]
+                               ["name"] == name_client) {
+        if (m_task.buffer[i].json["meta"]["$type_event"] == "res") {
+          // std::cout<<"RES\n";
+          if (start_event(m_task.buffer[i].json) == 0) {
+            m_returns.call(m_task.buffer[i].json["meta"]["$respon_id"], m_task.buffer[i].json);
+            end_event(m_task.buffer[i].json);
+          } else {
+            num_miss++;
           }
+        } else if (m_task.buffer[i].json["meta"]["$type_event"] == "req") {
+          for (int j = 0; j < handlers.size(); j++) {
+            // std::cout<<"REQ\n";
+            if (handlers[j].nameobj ==
+                m_task.buffer[i].json["meta"]["$type_obj"]) {
+              std::cout << "START JSON: "
+                        << m_task.buffer[i].json["meta"]["$respon_id"] << "\n";
+              if (start_event(m_task.buffer[i].json) == 0) {
+                std::cout << "CALLBACK: "
+                          << m_task.buffer[i].json["meta"]["$respon_id"]
+                          << "\n";
+                handlers[j].callback(this, m_task.buffer[i].json);
+                end_event(m_task.buffer[i].json);
+              } else {
+                num_miss++;
+              }
+              break;
+            }
+          }
+        } else {
+          continue;
         }
       } else {
-        continue;
+        if (this->transfer != NULL) {
+          transfer(this, m_task.buffer[i].json);
+        }
       }
-    } else {
-      if (this->transfer != NULL) {
-        transfer(this, json);
-      }
+      init_task(&m_task.buffer[i]);
     }
-
-    m_task.delete_object(json["id"]);
   }
+  
 }
 bool connector::compareByupdate(const connection* a, const connection* b) {
-    return a->number_update < b->number_update; // Сортування за зростанням віку
+  return a->number_update < b->number_update;  // Сортування за зростанням віку
 }
 
 void connector::connector_manager::getevent() {
@@ -672,22 +638,22 @@ void connector::connector_manager::getevent() {
                                                                 start_event);
   }
   start_event = std::chrono::high_resolution_clock::now();
-  std::vector<connection*>sort_connections;
+  std::vector<connection*> sort_connections;
   sort_connections.resize(connections.size());
-  
-  for(int i=0;i<sort_connections.size();i++){
-    sort_connections[i]=&connections[i];
+
+  for (int i = 0; i < sort_connections.size(); i++) {
+    sort_connections[i] = &connections[i];
   }
   std::sort(sort_connections.begin(), sort_connections.end(), compareByupdate);
-  int max=0;
-   for(int i=0;i<sort_connections.size();i++){
-    if(sort_connections[i]->number_update>max){
-      max=sort_connections[i]->number_update;
+  int max = 0;
+  for (int i = 0; i < sort_connections.size(); i++) {
+    if (sort_connections[i]->number_update > max) {
+      max = sort_connections[i]->number_update;
     }
   }
-  if(max>sort_connections.size()+2){
-    for(int i=0;i<sort_connections.size();i++){
-      sort_connections[i]->number_update=0;
+  if (max > sort_connections.size() + 2) {
+    for (int i = 0; i < sort_connections.size(); i++) {
+      sort_connections[i]->number_update = 0;
     }
   }
   for (int i = 0; i < sort_connections.size(); i++) {
@@ -716,7 +682,7 @@ void connector::connector_manager::getevent() {
     char temp;
     int index_object = 0;
     bool jump = false;
-    int g=0;
+    int g = 0;
     for (int j = 0; j < res_size; j++) {
       if (sort_connections[i]->respon_str[j] == '{') {
         memcpy(&str_size_json[0], &sort_connections[i]->respon_str[n], j - n);
@@ -766,15 +732,10 @@ void connector::connector_manager::getevent() {
       }
     }
     sort_connections[i]->number_update++;
+
+    std::cout << "\nEVENT: " << sort_connections[i]->respon_str << "\n";
     m_task.delete_notnote();
     m_task.note_all();
-    std::cout << "\nEVENT: " << sort_connections[i]->respon_str << "\n";
-    mt.lock();
-    if (empty_thread == false) {
-      empty_thread = true;
-      cv.notify_all();
-    }
-    mt.unlock();
     end_event = std::chrono::high_resolution_clock::now();
     dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
                                                                 start_event);
@@ -782,13 +743,13 @@ void connector::connector_manager::getevent() {
       break;
     }
   }
+  worker_task();
 }
 void connector::connector_manager::start_loop() {
   connector_log->log(0, "connector_manager|start_loop", "START FUNCTION\n");
   scope_lock_mutex s_mt(&mt_n);
   work_loop = true;
   th = new std::thread(&connector_manager::loop, this);
-  th_worker = new std::thread(&connector_manager::worker_task, this);
 }
 void connector::connector_manager::loop() {
   connector_log->log(0, "connector_manager|loop", "START FUNCTION\n");
@@ -802,7 +763,5 @@ void connector::connector_manager::finish_loop() {
   scope_lock_mutex s_mt(&mt_n);
   work_loop = false;
   th->join();
-  th_worker->join();
   delete th;
-  delete th_worker;
 }

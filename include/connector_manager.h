@@ -169,10 +169,10 @@ class manager_task {
   void note_all();
   void delete_object(std::string id);
   ~manager_task() {}
-
+  std::vector<task> buffer;
  private:
   mutex_n mt;
-  std::vector<task> buffer;
+
 };
 class manager_returns {
  public:
@@ -208,7 +208,6 @@ class connector_manager {
   connector::manager_task m_task;
   connector::manager_returns m_returns;
   std::thread* th;
-  std::thread* th_worker;
   connector::mutex_n mt_n;
   std::vector<handler> handlers;
   connector::t_json last_events;
