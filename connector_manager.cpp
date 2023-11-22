@@ -107,6 +107,7 @@ void connector::manager_task::add(t_json json) {
   //  }
   task ev;
   ev.json = json;
+  ev.note=true;
   scope_lock_mutex s_ret(&mt);
 
   // std::cout<<"$$$ADD\n";
@@ -141,6 +142,7 @@ bool connector::manager_task::check_id(std::string id) {
   scope_lock_mutex s_ret(&mt);
   for (int i = 0; i < buffer.size(); i++) {
     if (!buffer[i].empty && buffer[i].json["id"] == id) {
+      buffer[i].note=true;
       return true;
     }
   }
@@ -720,9 +722,6 @@ void connector::connector_manager::getevent() {
             end_event = std::chrono::high_resolution_clock::now();
             dur = std::chrono::duration_cast<std::chrono::milliseconds>(
                 end_event - start_event);
-            if (dur.count() > 20) {
-              break;
-            }
           } else {
             jump = false;
           }
@@ -739,9 +738,7 @@ void connector::connector_manager::getevent() {
     end_event = std::chrono::high_resolution_clock::now();
     dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
                                                                 start_event);
-    if (dur.count() > 20) {
-      break;
-    }
+    
   }
   worker_task();
 }
