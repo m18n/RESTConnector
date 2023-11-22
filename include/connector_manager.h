@@ -158,7 +158,7 @@ void init_task(task* ev);
 class manager_task {
  public:
   manager_task() {
-    scope_lock_mutex s_ret(&mt);
+    
     buffer.resize(25);
   }
   void add(t_json json);
@@ -170,8 +170,7 @@ class manager_task {
   void delete_object(std::string id);
   ~manager_task() {}
   std::vector<task> buffer;
- private:
-  mutex_n mt;
+
 
 };
 class manager_returns {

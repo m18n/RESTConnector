@@ -108,7 +108,6 @@ void connector::manager_task::add(t_json json) {
   task ev;
   ev.json = json;
   ev.note=true;
-  scope_lock_mutex s_ret(&mt);
 
   // std::cout<<"$$$ADD\n";
 
@@ -126,7 +125,6 @@ void connector::manager_task::show() {
   connector_log->log(0, "manager_task|show", "START FUNCTION\n");
   int c = 1;
   // std::cout<<"$$$SHOW\n";
-  scope_lock_mutex s_ret(&mt);
 
   for (int i = 0; i < buffer.size(); i++) {
     if (!buffer[i].empty) {
@@ -139,7 +137,6 @@ void connector::manager_task::show() {
 bool connector::manager_task::check_id(std::string id) {
   connector_log->log(0, "manager_task|check_id", "START FUNCTION\n");
   // std::cout<<"$$$CHECK\n";
-  scope_lock_mutex s_ret(&mt);
   for (int i = 0; i < buffer.size(); i++) {
     if (!buffer[i].empty && buffer[i].json["id"] == id) {
       buffer[i].note=true;
@@ -153,7 +150,6 @@ connector::t_json connector::manager_task::get_task() {
   connector_log->log(0, "manager_task|get_task", "START FUNCTION\n");
   // std::cout<<"$$$GET TASK\n";
   t_json t;
-  scope_lock_mutex s_ret(&mt);
 
   for (int i = 0; i < buffer.size(); i++) {
     if (!buffer[i].empty) {
@@ -168,7 +164,6 @@ connector::t_json connector::manager_task::get_task() {
 void connector::manager_task::delete_notnote() {
   connector_log->log(0, "manager_task|delete_notnote", "START FUNCTION\n");
   // std::cout<<"$$$DELETE\n";
-  scope_lock_mutex s_ret(&mt);
 
   for (int i = 0; i < buffer.size(); i++) {
     if (!buffer[i].empty && buffer[i].note == false) {
@@ -179,7 +174,6 @@ void connector::manager_task::delete_notnote() {
 
 void connector::manager_task::note_all() {
   connector_log->log(0, "manager_task|not_all", "START FUNCTION\n");
-  scope_lock_mutex s_ret(&mt);
   // std::cout<<"$$$NOT ALL\n";
 
   for (int i = 0; i < buffer.size(); i++) {
@@ -190,7 +184,6 @@ void connector::manager_task::note_all() {
 }
 void connector::manager_task::delete_object(std::string id) {
   connector_log->log(0, "manager_task|delete_object", "START FUNCTION\n");
-  scope_lock_mutex s_ret(&mt);
   // std::cout<<"$$$DELETE OBJ\n";
 
   for (int i = 0; i < buffer.size(); i++) {
@@ -726,6 +719,12 @@ void connector::connector_manager::getevent() {
             jump = false;
           }
         }
+        end_event = std::chrono::high_resolution_clock::now();
+        dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
+                                                                start_event);
+        if(dur.count()>100){
+          break;
+        }
         n = j;
         index_object++;
       }
@@ -738,7 +737,9 @@ void connector::connector_manager::getevent() {
     end_event = std::chrono::high_resolution_clock::now();
     dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
                                                                 start_event);
-    
+    if(dur.count()>100){
+      break;
+    }
   }
   worker_task();
 }
