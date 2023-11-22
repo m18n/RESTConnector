@@ -719,12 +719,7 @@ void connector::connector_manager::getevent() {
             jump = false;
           }
         }
-        end_event = std::chrono::high_resolution_clock::now();
-        dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
-                                                                start_event);
-        if(dur.count()>100){
-          break;
-        }
+        
         n = j;
         index_object++;
       }
@@ -734,12 +729,7 @@ void connector::connector_manager::getevent() {
     std::cout << "\nEVENT: " << sort_connections[i]->respon_str << "\n";
     m_task.delete_notnote();
     m_task.note_all();
-    end_event = std::chrono::high_resolution_clock::now();
-    dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
-                                                                start_event);
-    if(dur.count()>100){
-      break;
-    }
+    
   }
   worker_task();
 }
