@@ -532,16 +532,31 @@ void connector::connector_manager::worker_task() {
   auto end_time = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
       end_time - start_time);
-  static int g = 0;
+  auto timer_get_task_start=std::chrono::high_resolution_clock::now();
+  auto timer_get_task_end=std::chrono::high_resolution_clock::now();
+  auto time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+      timer_get_task_end - timer_get_task_start);
+  static int g = 1;
+  int num_miss=0;
+  int middle_timer=0;
   while (work_loop == true) {
     connector_log->log(0, "connector_manager|worker_task", "START LOOP\n");
+    timer_get_task_start=std::chrono::high_resolution_clock::now();
     t_json json = m_task.get_task();
-
+    timer_get_task_end=std::chrono::high_resolution_clock::now();
+    time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+      timer_get_task_end - timer_get_task_start);
+    middle_timer+=time_duration.count();
     if (json.empty()) {
       end_time = std::chrono::high_resolution_clock::now();
       duration = std::chrono::duration_cast<std::chrono::milliseconds>(
           end_time - start_time);
       if (duration.count() >= 1000) {
+        std::cout<<"MIDDLE TIMER: "<<middle_timer/g<<" MD: "<<middle_timer<<" G: "<<g<<"\n";
+        std::cout<<"MISS: "<<num_miss<<"\n";
+        num_miss=0;
+        g=0;
+        middle_timer=0;
         std::cout << "DURACTION: " << duration.count() << "\n";
         std::unique_lock<std::mutex> lock(mt);
         empty_thread = false;
@@ -550,8 +565,9 @@ void connector::connector_manager::worker_task() {
       }
       continue;
     }
-    g++;
+    
     std::cout << "WORK START: " << g << "\n";
+    g++;
     bool job = false;
     start_time = std::chrono::high_resolution_clock::now();
     int size_arr = json["meta"]["$list_servers"].size();
@@ -564,6 +580,8 @@ void connector::connector_manager::worker_task() {
         if (start_event(json) == 0) {
           m_returns.call(json["meta"]["$respon_id"], json);
           end_event(json);
+        }else{
+          num_miss++;
         }
       } else if (json["meta"]["$type_event"] == "req") {
         for (int j = 0; j < handlers.size(); j++) {
@@ -574,6 +592,8 @@ void connector::connector_manager::worker_task() {
               std::cout << "CALLBACK: " << json["meta"]["$respon_id"] << "\n";
               handlers[j].callback(this, json);
               end_event(json);
+            }else{
+              num_miss++;
             }
             break;
           }
@@ -591,7 +611,7 @@ void connector::connector_manager::worker_task() {
   }
 }
 bool connector::compareByupdate(const connection* a, const connection* b) {
-    return a->update < b->update; // Сортування за зростанням віку
+    return a->number_update < b->number_update; // Сортування за зростанням віку
 }
 
 void connector::connector_manager::getevent() {
@@ -659,8 +679,16 @@ void connector::connector_manager::getevent() {
     sort_connections[i]=&connections[i];
   }
   std::sort(sort_connections.begin(), sort_connections.end(), compareByupdate);
+  int max=0;
    for(int i=0;i<sort_connections.size();i++){
-    sort_connections[i]->update=false;
+    if(sort_connections[i]->number_update>max){
+      max=sort_connections[i]->number_update;
+    }
+  }
+  if(max>sort_connections.size()+2){
+    for(int i=0;i<sort_connections.size();i++){
+      sort_connections[i]->number_update=0;
+    }
   }
   for (int i = 0; i < sort_connections.size(); i++) {
     if (sort_connections[i]->count_try != 0) {
@@ -688,7 +716,7 @@ void connector::connector_manager::getevent() {
     char temp;
     int index_object = 0;
     bool jump = false;
-    
+    int g=0;
     for (int j = 0; j < res_size; j++) {
       if (sort_connections[i]->respon_str[j] == '{') {
         memcpy(&str_size_json[0], &sort_connections[i]->respon_str[n], j - n);
@@ -726,7 +754,7 @@ void connector::connector_manager::getevent() {
             end_event = std::chrono::high_resolution_clock::now();
             dur = std::chrono::duration_cast<std::chrono::milliseconds>(
                 end_event - start_event);
-            if (dur.count() > 100) {
+            if (dur.count() > 20) {
               break;
             }
           } else {
@@ -737,7 +765,7 @@ void connector::connector_manager::getevent() {
         index_object++;
       }
     }
-    sort_connections[i]->update=true;
+    sort_connections[i]->number_update++;
     m_task.delete_notnote();
     m_task.note_all();
     std::cout << "\nEVENT: " << sort_connections[i]->respon_str << "\n";
@@ -750,7 +778,7 @@ void connector::connector_manager::getevent() {
     end_event = std::chrono::high_resolution_clock::now();
     dur = std::chrono::duration_cast<std::chrono::milliseconds>(end_event -
                                                                 start_event);
-    if (dur.count() > 100) {
+    if (dur.count() > 20) {
       break;
     }
   }
